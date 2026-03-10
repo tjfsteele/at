@@ -80,24 +80,28 @@
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Agile p/kWh',
-                    data: agileValues,
-                    borderColor: '#f03292',
-                    backgroundColor: 'rgba(240, 50, 146, 0.1)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 0,
-                    borderWidth: 2
-                }, {
-                    label: 'Tracker p/kWh',
-                    data: trackerValues,
-                    borderColor: '#4bc0c0',
-                    borderDash: [5, 5],
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: false
-                }]
+                datasets: [
+                    {
+                        label: 'Agile p/kWh',
+                        data: agileValues,
+                        borderColor: '#f03292',
+                        backgroundColor: 'rgba(240, 50, 146, 0.1)',
+                        fill: true,
+                        tension: 0.3, // Keep Agile slightly curvy for readability
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }, 
+                    {
+                        label: 'Tracker p/kWh',
+                        data: trackerValues,
+                        borderColor: '#4bc0c0',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                        stepped: 'before' // <--- THIS IS THE MAGIC LINE
+                    }
+                ]
             },
             options: {
                 responsive: true,
