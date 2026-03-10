@@ -3,129 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live: East Anglia (Region A)</title>
+    <title>Octopus Dashboard: East Anglia</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background-color: #0d0d12; color: #ffffff; padding: 20px; line-height: 1.6; }
-        .container { max-width: 1000px; margin: 0 auto; background: #1a1a24; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { text-align: center; color: #f03292; margin-top: 0; }
-        .status-bar { text-align: center; font-size: 0.9rem; color: #a0a0b0; margin-bottom: 20px; }
-        #loading { text-align: center; padding: 100px 0; font-size: 1.2rem; color: #f03292; }
-        .legend-custom { display: flex; justify-content: center; gap: 20px; margin-top: 20px; font-size: 0.9rem; }
-        .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        :root { --agile: #f03292; --tracker: #4bc0c0; --gas: #ff9f40; --bg: #0d0d12; --card: #1a1a24; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        /* Dashboard Header */
+        .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: var(--card); padding: 20px; border-radius: 12px; text-align: center; border-bottom: 4px solid #333; }
+        .stat-card.agile { border-color: var(--agile); }
+        .stat-card.tracker { border-color: var(--tracker); }
+        .stat-card.gas { border-color: var(--gas); }
+        .val { font-size: 2rem; font-weight: bold; display: block; }
+        .label { font-size: 0.8rem; color: #a0a0b0; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Chart Area */
+        .chart-box { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; position: relative; }
+        
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+        th { background: #252533; padding: 12px; text-align: left; font-size: 0.9rem; color: #a0a0b0; }
+        td { padding: 12px; border-top: 1px solid #333; }
+        .cheaper { color: #2ecc71; font-weight: bold; }
+        .expensive { color: #e74c3c; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Agile vs Tracker: East Anglia</h1>
-    <div class="status-bar" id="statusBar">Connecting to Octopus API...</div>
-    
-    <div id="loading">Gathering half-hourly rates...</div>
-    <canvas id="priceChart" style="display:none;"></canvas>
-
-    <div class="legend-custom">
-        <span><span class="dot" style="background-color: #f03292;"></span>Agile (30m)</span>
-        <span><span class="dot" style="background-color: #4bc0c0;"></span>Tracker (Daily)</span>
+    <div class="dash-grid">
+        <div class="stat-card agile">
+            <span class="label">Current Agile</span>
+            <span class="val" id="curAgile">-</span>
+        </div>
+        <div class="stat-card tracker">
+            <span class="label">Tracker (Elec)</span>
+            <span class="val" id="curTracker">-</span>
+        </div>
+        <div class="stat-card gas">
+            <span class="label">Tracker (Gas)</span>
+            <span class="val" id="curGas">-</span>
+        </div>
     </div>
+
+    <div class="chart-box">
+        <canvas id="mainChart"></canvas>
+    </div>
+
+    <h3>Cheapest Slots (Next 24h)</h3>
+    <table id="savingsTable">
+        <thead>
+            <tr>
+                <th>Time Window</th>
+                <th>Agile Price</th>
+                <th>vs. Tracker</th>
+                <th>Advice</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 </div>
 
 <script>
-    // REGION A = Eastern England / East Anglia
-    const REGION = 'A'; 
-    const AGILE_URL = `https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REGION}/standard-unit-rates/`;
-    const TRACKER_URL = `https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
+    const REGION = 'A'; // East Anglia
+    const API_BASE = "https://api.octopus.energy/v1/products/";
+    
+    // Product codes updated for March 2026
+    const AGILE_E = `${API_BASE}AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REGION}/standard-unit-rates/`;
+    const TRACKER_E = `${API_BASE}SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
+    const TRACKER_G = `${API_BASE}SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
 
-    async function fetchData() {
+    async function init() {
         try {
-            const [agileRes, trackerRes] = await Promise.all([
-                fetch(AGILE_URL),
-                fetch(TRACKER_URL)
+            const [ae, te, tg] = await Promise.all([
+                fetch(AGILE_E).then(r => r.json()),
+                fetch(TRACKER_E).then(r => r.json()),
+                fetch(TRACKER_G).then(r => r.json())
             ]);
 
-            const agileData = await agileRes.json();
-            const trackerData = await trackerRes.json();
+            const agile = ae.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
+            const trackE = te.results;
+            const trackG = tg.results;
 
-            if (!agileData.results || !trackerData.results) throw new Error("Data missing");
-
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('priceChart').style.display = 'block';
-            document.getElementById('statusBar').innerText = `Live Data for ${new Date().toLocaleDateString('en-GB')}`;
-
-            renderChart(agileData.results, trackerData.results);
-        } catch (err) {
-            document.getElementById('loading').innerText = "Failed to load Octopus data. Please try again later.";
-            console.error(err);
-        }
+            updateDashboard(agile, trackE, trackG);
+            renderMainChart(agile, trackE, trackG);
+            renderSavings(agile, trackE);
+        } catch (e) { console.error("API Error:", e); }
     }
 
-    function renderChart(agile, tracker) {
-        // Sort Agile data (newest is usually first in API)
-        const sortedAgile = agile.sort((a, b) => new Date(a.valid_from) - new Date(b.valid_from));
-        
-        const labels = sortedAgile.map(d => {
-            const date = new Date(d.valid_from);
-            return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        });
+    function updateDashboard(agile, trackE, trackG) {
+        const now = new Date();
+        const currentAgile = agile.find(d => new Date(d.valid_from) <= now && new Date(d.valid_to) > now);
+        const todayStr = now.toISOString().split('T')[0];
+        const currentTE = trackE.find(d => d.valid_from.startsWith(todayStr));
+        const currentTG = trackG.find(d => d.valid_from.startsWith(todayStr));
 
-        const agileValues = sortedAgile.map(d => d.value_inc_vat);
+        document.getElementById('curAgile').innerText = currentAgile ? currentAgile.value_inc_vat.toFixed(1) + 'p' : '-';
+        document.getElementById('curTracker').innerText = currentTE ? currentTE.value_inc_vat.toFixed(1) + 'p' : '-';
+        document.getElementById('curGas').innerText = currentTG ? currentTG.value_inc_vat.toFixed(1) + 'p' : '-';
+    }
+
+    function renderMainChart(agile, trackE, trackG) {
+        const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+        const agileData = agile.map(d => d.value_inc_vat);
         
-        const trackerValues = sortedAgile.map(a => {
-            const aDate = a.valid_from.split('T')[0];
-            const match = tracker.find(t => t.valid_from.split('T')[0] === aDate);
+        const trackEData = agile.map(a => {
+            const match = trackE.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0]));
             return match ? match.value_inc_vat : null;
         });
 
-        new Chart(document.getElementById('priceChart'), {
+        const trackGData = agile.map(a => {
+            const match = trackG.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0]));
+            return match ? match.value_inc_vat : null;
+        });
+
+        new Chart(document.getElementById('mainChart'), {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [
-                    {
-                        label: 'Agile p/kWh',
-                        data: agileValues,
-                        borderColor: '#f03292',
-                        backgroundColor: 'rgba(240, 50, 146, 0.1)',
-                        fill: true,
-                        tension: 0.3, // Keep Agile slightly curvy for readability
-                        pointRadius: 0,
-                        borderWidth: 2
-                    }, 
-                    {
-                        label: 'Tracker p/kWh',
-                        data: trackerValues,
-                        borderColor: '#4bc0c0',
-                        borderDash: [5, 5],
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        fill: false,
-                        stepped: 'before' // <--- THIS IS THE MAGIC LINE
-                    }
+                    { label: 'Agile (Elec)', data: agileData, borderColor: '#f03292', tension: 0.3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'Tracker (Elec)', data: trackEData, borderColor: '#4bc0c0', stepped: 'before', borderDash: [5,5], pointRadius: 0 },
+                    { label: 'Tracker (Gas)', data: trackGData, borderColor: '#ff9f40', stepped: 'before', pointRadius: 0, borderWidth: 1 }
                 ]
             },
             options: {
                 responsive: true,
-                interaction: { mode: 'index', intersect: false },
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        grid: { color: '#333' },
-                        ticks: { color: '#aaa' },
-                        title: { display: true, text: 'Pence per kWh', color: '#fff' }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#aaa', maxTicksLimit: 12 }
-                    }
+                scales: { 
+                    y: { grid: { color: '#333' }, ticks: { color: '#aaa' } },
+                    x: { ticks: { color: '#aaa', maxTicksLimit: 12 } }
                 },
                 plugins: {
-                    legend: { display: false } // Using custom HTML legend
+                    annotation: {
+                        annotations: {
+                            line1: {
+                                type: 'line',
+                                xMin: labels[agile.findIndex(d => new Date(d.valid_from) > new Date()) - 1],
+                                xMax: labels[agile.findIndex(d => new Date(d.valid_from) > new Date()) - 1],
+                                borderColor: 'white',
+                                borderWidth: 2,
+                                label: { content: 'NOW', display: true, backgroundColor: 'white', color: 'black', font: {size: 10} }
+                            }
+                        }
+                    }
                 }
             }
         });
     }
 
-    fetchData();
+    function renderSavings(agile, trackE) {
+        const tbody = document.querySelector('#savingsTable tbody');
+        const futureSlots = agile.filter(d => new Date(d.valid_from) > new Date()).slice(0, 10);
+        
+        futureSlots.forEach(slot => {
+            const trackerPrice = trackE.find(t => t.valid_from.startsWith(slot.valid_from.split('T')[0])).value_inc_vat;
+            const diff = (slot.value_inc_vat - trackerPrice).toFixed(1);
+            const isCheaper = slot.value_inc_vat < trackerPrice;
+
+            const row = `<tr>
+                <td>${new Date(slot.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                <td>${slot.value_inc_vat.toFixed(1)}p</td>
+                <td class="${isCheaper ? 'cheaper' : 'expensive'}">${isCheaper ? 'SAVE ' + Math.abs(diff) + 'p' : '+' + diff + 'p'}</td>
+                <td>${isCheaper ? '⚡ Use Appliances' : 'Wait'}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    init();
 </script>
 </body>
 </html>
