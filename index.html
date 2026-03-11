@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live - 3H Intervals</title>
+    <title>Octopus Live - Dynamic Intervals</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -18,7 +18,7 @@
         .val { font-size: 1.6rem; font-weight: bold; display: block; margin-top: 5px; }
         .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        .chart-box { background: var(--card); padding: 10px; border-radius: 12px; height: 65vh; min-height: 450px; }
+        .chart-box { background: var(--card); padding: 10px; border-radius: 12px; height: 70vh; min-height: 450px; }
     </style>
 </head>
 <body>
@@ -41,6 +41,7 @@
     const fetchJSON = url => fetch(url).then(r => r.json());
 
     async function run() {
+        // Fetch data for all tariffs
         const [aData, eData, gData] = await Promise.all([
             fetchJSON(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REG}/standard-unit-rates/`),
             fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`),
@@ -49,11 +50,18 @@
 
         const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
         const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
 
-        // 3-HOUR INTERVAL LOGIC
-        const labels = agile.map(d => {
+        // RESPONSIVE LOGIC: Only show "Today" if the screen is narrow (mobile)
+        const isMobile = window.innerWidth < 768;
+        const filteredAgile = isMobile 
+            ? agile.filter(d => d.valid_from.startsWith(todayStr)) 
+            : agile;
+
+        // GENERATE LABELS
+        const labels = filteredAgile.map(d => {
             const dt = new Date(d.valid_from);
-            // Only label if it's the top of the hour AND divisible by 3 (00, 03, 06, etc)
+            // 3H Interval logic: Only label top of hour if divisible by 3
             if (dt.getMinutes() === 0 && dt.getHours() % 3 === 0) {
                 return dt.toLocaleDateString([], {day:'2-digit', month:'short'}) + ' ' + 
                        dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
@@ -61,89 +69,12 @@
             return ''; 
         });
         
-        const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
+        const nowIdx = filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
+        // SET DASHBOARD VALUES
         const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
-        const todayStr = now.toISOString().split('T')[0];
         const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
         const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
         
         document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
         document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
-        document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '-';
-
-        new Chart(document.getElementById('mainChart'), {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    { 
-                        label: 'Agile', 
-                        data: agile.map(d => d.value_inc_vat), 
-                        borderColor: '#f03292', 
-                        yAxisID: 'y', 
-                        stepped: 'after', 
-                        pointRadius: 0 
-                    },
-                    { 
-                        label: 'Elec Trk', 
-                        data: agile.map(a => (eData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#4bc0c0', 
-                        yAxisID: 'y', 
-                        stepped: 'before', 
-                        pointRadius: 0,
-                        borderWidth: 1
-                    },
-                    { 
-                        label: 'Gas Trk', 
-                        data: agile.map(a => (gData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#ff9f40', 
-                        yAxisID: 'yGas', 
-                        stepped: 'before', 
-                        pointRadius: 0, 
-                        borderWidth: 2 
-                    }
-                ]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', color: '#aaa' } },
-                    annotation: {
-                        annotations: {
-                            nowLine: { 
-                                type: 'line', 
-                                xMin: nowIdx, 
-                                xMax: nowIdx, 
-                                borderColor: 'rgba(255, 255, 255, 0.5)', 
-                                borderWidth: 2, 
-                                label: { content: 'NOW', display: true, backgroundColor: 'rgba(0,0,0,0.5)', font: { size: 10 } } 
-                            }
-                        }
-                    }
-                },
-                scales: { 
-                    y: { position: 'left', beginAtZero: true, ticks: { color: '#aaa', font: { size: 10 } }, grid: { color: '#333' } },
-                    yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
-                    x: { 
-                        grid: {
-                            // Only show grid lines where we have labels
-                            color: (ctx) => ctx.tick && ctx.tick.label !== '' ? '#444' : 'transparent',
-                            drawTicks: true
-                        },
-                        ticks: { 
-                            color: '#aaa', 
-                            autoSkip: false,
-                            maxRotation: 45,
-                            minRotation: 45,
-                            font: { size: 9 }
-                        } 
-                    }
-                }
-            }
-        });
-    }
-    run();
-</script>
-</body>
-</html>
