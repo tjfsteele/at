@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live - Hourly</title>
+    <title>Octopus Live - 3H Intervals</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -18,8 +18,7 @@
         .val { font-size: 1.6rem; font-weight: bold; display: block; margin-top: 5px; }
         .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* Increased height to accommodate vertical hourly labels */
-        .chart-box { background: var(--card); padding: 10px; border-radius: 12px; height: 70vh; min-height: 500px; }
+        .chart-box { background: var(--card); padding: 10px; border-radius: 12px; height: 65vh; min-height: 450px; }
     </style>
 </head>
 <body>
@@ -51,15 +50,15 @@
         const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
         const now = new Date();
 
-        // Generate labels: Only show text for the top of the hour (HH:00)
+        // 3-HOUR INTERVAL LOGIC
         const labels = agile.map(d => {
             const dt = new Date(d.valid_from);
-            const isTopHour = dt.getMinutes() === 0;
-            if (isTopHour) {
+            // Only label if it's the top of the hour AND divisible by 3 (00, 03, 06, etc)
+            if (dt.getMinutes() === 0 && dt.getHours() % 3 === 0) {
                 return dt.toLocaleDateString([], {day:'2-digit', month:'short'}) + ' ' + 
                        dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
             }
-            return ''; // Empty string for the :30 slots
+            return ''; 
         });
         
         const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
@@ -128,19 +127,16 @@
                     yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
                     x: { 
                         grid: {
-                            color: (context) => context.tick && context.tick.label !== '' ? '#444' : 'transparent',
+                            // Only show grid lines where we have labels
+                            color: (ctx) => ctx.tick && ctx.tick.label !== '' ? '#444' : 'transparent',
                             drawTicks: true
                         },
                         ticks: { 
                             color: '#aaa', 
-                            autoSkip: false, // This forces every label to be considered
-                            maxRotation: 90, // Vertical labels to save space
-                            minRotation: 90,
-                            font: { size: 8 },
-                            callback: function(val, index) {
-                                // Only show the label if it's not an empty string
-                                return this.getLabelForValue(val);
-                            }
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 45,
+                            font: { size: 9 }
                         } 
                     }
                 }
