@@ -14,7 +14,7 @@
         .card { background: var(--card); padding: 15px; border-radius: 10px; text-align: center; border-bottom: 3px solid #333; }
         .val { font-size: 1.8rem; font-weight: bold; display: block; }
         .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; }
-        .chart-container { background: var(--card); padding: 15px; border-radius: 10px; height: 400px; position: relative; }
+        .chart-container { background: var(--card); padding: 15px; border-radius: 10px; height: 500px; position: relative; }
     </style>
 </head>
 <body>
@@ -32,10 +32,9 @@
 </div>
 
 <script>
-    // CRITICAL: This registers the "Now" line plugin
     Chart.register(window['chartjs-plugin-annotation']);
 
-    const REG = 'A'; // East Anglia
+    const REG = 'A'; 
     const fetchJSON = url => fetch(url).then(r => r.json());
 
     async function run() {
@@ -48,17 +47,15 @@
         const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
         const now = new Date();
 
-        // 1. Update Top Stats
         const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
         const todayStr = now.toISOString().split('T')[0];
         const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
         const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
 
-        document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : 'N/A';
-        document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : 'N/A';
-        document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : 'N/A';
+        document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
+        document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
+        document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '-';
 
-        // 2. Prepare Chart Data
         const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
         const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
@@ -67,16 +64,16 @@
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Agile', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', tension: 0.3, pointRadius: 0 },
+                    { label: 'Agile (Elec)', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', yAxisID: 'y', tension: 0.3, pointRadius: 0 },
                     { 
-                        label: 'Tracker Elec', 
+                        label: 'Tracker (Elec)', 
                         data: agile.map(a => (eData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#4bc0c0', stepped: 'before', borderDash: [5,5], pointRadius: 0 
+                        borderColor: '#4bc0c0', yAxisID: 'y', stepped: 'before', borderDash: [5,5], pointRadius: 0 
                     },
                     { 
-                        label: 'Tracker Gas', 
+                        label: 'Tracker (Gas)', 
                         data: agile.map(a => (gData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#ff9f40', stepped: 'before', pointRadius: 0, borderWidth: 1 
+                        borderColor: '#ff9f40', yAxisID: 'yGas', stepped: 'before', pointRadius: 0, borderWidth: 2 
                     }
                 ]
             },
@@ -88,13 +85,23 @@
                             nowLine: {
                                 type: 'line', xMin: nowIdx, xMax: nowIdx,
                                 borderColor: 'white', borderWidth: 2,
-                                label: { content: 'NOW', display: true, backgroundColor: 'white', color: 'black', position: 'start' }
+                                label: { content: 'NOW', display: true, backgroundColor: 'white', color: 'black' }
                             }
                         }
                     }
                 },
                 scales: { 
-                    y: { grid: { color: '#333' }, ticks: { color: '#aaa' } },
+                    y: { 
+                        type: 'linear', display: true, position: 'left',
+                        title: { display: true, text: 'Electricity (p/kWh)', color: '#4bc0c0' },
+                        grid: { color: '#333' }, ticks: { color: '#aaa' }
+                    },
+                    yGas: { 
+                        type: 'linear', display: true, position: 'right',
+                        title: { display: true, text: 'Gas (p/kWh)', color: '#ff9f40' },
+                        grid: { drawOnChartArea: false }, // Only show grid for left axis
+                        ticks: { color: '#ff9f40' }
+                    },
                     x: { ticks: { color: '#aaa', maxTicksLimit: 12 } }
                 }
             }
