@@ -3,31 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live - Dynamic Intervals</title>
+    <title>Octopus Live - Compact Mobile</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         :root { --agile: #f03292; --tracker: #4bc0c0; --gas: #ff9f40; --bg: #0d0d12; --card: #1a1a24; }
-        body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 10px; }
+        body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 8px; overflow-x: hidden; }
         .container { max-width: 1000px; margin: 0 auto; }
         
-        .dash { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
-        @media (min-width: 600px) { .dash { grid-template-columns: repeat(3, 1fr); } }
+        /* MOBILE FIRST: Side-by-side slim cards */
+        .dash { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 6px; 
+            margin-bottom: 10px; 
+        }
 
-        .card { background: var(--card); padding: 12px; border-radius: 12px; text-align: center; border-bottom: 4px solid #333; }
-        .val { font-size: 1.6rem; font-weight: bold; display: block; margin-top: 5px; }
-        .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card { 
+            background: var(--card); 
+            padding: 8px 4px; 
+            border-radius: 8px; 
+            text-align: center; 
+            border-bottom: 3px solid #333; 
+        }
 
-        .chart-box { background: var(--card); padding: 10px; border-radius: 12px; height: 70vh; min-height: 450px; }
+        /* Shrink text on mobile to fit 3-across */
+        .val { font-size: 1.1rem; font-weight: bold; display: block; }
+        .label { font-size: 0.6rem; color: #aaa; text-transform: uppercase; white-space: nowrap; }
+
+        /* DESKTOP: Larger cards */
+        @media (min-width: 768px) {
+            .dash { gap: 15px; margin-bottom: 15px; }
+            .card { padding: 15px; border-bottom-width: 4px; }
+            .val { font-size: 1.8rem; }
+            .label { font-size: 0.75rem; }
+            .chart-box { height: 75vh; }
+        }
+
+        .chart-box { 
+            background: var(--card); 
+            padding: 8px; 
+            border-radius: 12px; 
+            height: 75vh; /* Takes up most of the remaining viewport */
+            min-height: 400px; 
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="dash">
-        <div class="card" style="border-color: var(--agile)"><span class="label">Agile Elec</span><span class="val" id="ca">-</span></div>
-        <div class="card" style="border-color: var(--tracker)"><span class="label">Tracker Elec</span><span class="val" id="ce">-</span></div>
-        <div class="card" style="border-color: var(--gas)"><span class="label">Tracker Gas</span><span class="val" id="cg">-</span></div>
+        <div class="card" style="border-color: var(--agile)"><span class="label">Agile</span><span class="val" id="ca">-</span></div>
+        <div class="card" style="border-color: var(--tracker)"><span class="label">Trk Elec</span><span class="val" id="ce">-</span></div>
+        <div class="card" style="border-color: var(--gas)"><span class="label">Trk Gas</span><span class="val" id="cg">-</span></div>
     </div>
 
     <div class="chart-box">
@@ -41,7 +69,6 @@
     const fetchJSON = url => fetch(url).then(r => r.json());
 
     async function run() {
-        // Fetch data for all tariffs
         const [aData, eData, gData] = await Promise.all([
             fetchJSON(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REG}/standard-unit-rates/`),
             fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`),
@@ -52,29 +79,92 @@
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
 
-        // RESPONSIVE LOGIC: Only show "Today" if the screen is narrow (mobile)
+        // RESPONSIVE DATA: "Today" for mobile, "Today & Tomorrow" for desktop
         const isMobile = window.innerWidth < 768;
         const filteredAgile = isMobile 
             ? agile.filter(d => d.valid_from.startsWith(todayStr)) 
             : agile;
 
-        // GENERATE LABELS
         const labels = filteredAgile.map(d => {
             const dt = new Date(d.valid_from);
-            // 3H Interval logic: Only label top of hour if divisible by 3
+            // 3H Intervals
             if (dt.getMinutes() === 0 && dt.getHours() % 3 === 0) {
-                return dt.toLocaleDateString([], {day:'2-digit', month:'short'}) + ' ' + 
-                       dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                return dt.getHours().toString().padStart(2, '0') + ':00';
             }
             return ''; 
         });
         
         const nowIdx = filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
-        // SET DASHBOARD VALUES
         const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
         const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
         const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
         
         document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
         document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
+        document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '-';
+
+        new Chart(document.getElementById('mainChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { 
+                        label: 'Agile', 
+                        data: filteredAgile.map(d => d.value_inc_vat), 
+                        borderColor: '#f03292', 
+                        stepped: 'after', 
+                        pointRadius: 0,
+                        borderWidth: 2
+                    },
+                    { 
+                        label: 'Elec Trk', 
+                        data: filteredAgile.map(a => (eData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        borderColor: '#4bc0c0', 
+                        stepped: 'before', 
+                        pointRadius: 0,
+                        borderWidth: 1.5
+                    },
+                    { 
+                        label: 'Gas Trk', 
+                        data: filteredAgile.map(a => (gData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        borderColor: '#ff9f40', 
+                        yAxisID: 'yGas', 
+                        stepped: 'before', 
+                        pointRadius: 0, 
+                        borderWidth: 2 
+                    }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 }, color: '#aaa' } },
+                    annotation: {
+                        annotations: {
+                            nowLine: { 
+                                type: 'line', 
+                                xMin: nowIdx, xMax: nowIdx, 
+                                borderColor: 'rgba(255, 255, 255, 0.4)', 
+                                borderWidth: 2, 
+                                display: nowIdx >= 0,
+                                label: { content: 'NOW', display: true, position: 'start', backgroundColor: 'rgba(0,0,0,0.5)', font: { size: 9 } } 
+                            }
+                        }
+                    }
+                },
+                scales: { 
+                    y: { position: 'left', beginAtZero: true, ticks: { color: '#aaa', font: { size: 10 } }, grid: { color: '#222' } },
+                    yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
+                    x: { 
+                        grid: { color: (ctx) => ctx.tick && ctx.tick.label !== '' ? '#333' : 'transparent' },
+                        ticks: { color: '#aaa', autoSkip: false, maxRotation: 0, font: { size: 9 } } 
+                    }
+                }
+            }
+        });
+    }
+    run();
+</script>
+</body>
+</html>
