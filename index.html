@@ -40,9 +40,30 @@
             background: var(--card); 
             padding: 8px; 
             border-radius: 12px; 
-            height: 72vh; 
+            height: 70vh; 
             min-height: 400px; 
             position: relative;
+        }
+
+        #mobile-controls {
+            display: none;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #toggleDay {
+            background: #2a2a35;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #toggleDay:active {
+            background: #444;
         }
 
         #updated-tag {
@@ -63,6 +84,10 @@
         <div class="card" style="border-color: var(--gas)"><span class="label">Trk Gas</span><span class="val" id="cg">-</span></div>
     </div>
 
+    <div id="mobile-controls">
+        <button id="toggleDay">Show Tomorrow</button>
+    </div>
+
     <div class="chart-box">
         <canvas id="mainChart"></canvas>
     </div>
@@ -74,6 +99,14 @@
     const REG = 'A'; 
     const fetchJSON = url => fetch(url).then(r => r.json());
     let myChart = null;
+    let viewingTomorrow = false; // Toggle state
+
+    // Handle Button Click
+    document.getElementById('toggleDay').addEventListener('click', () => {
+        viewingTomorrow = !viewingTomorrow;
+        document.getElementById('toggleDay').innerText = viewingTomorrow ? "Show Today" : "Show Tomorrow";
+        updateDashboard();
+    });
 
     async function updateDashboard() {
         try {
@@ -86,20 +119,25 @@
             const agileFull = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
             const now = new Date();
             
-            // Get start of today in local time for filtering
+            // Reference points for today and tomorrow
             const today = new Date();
             today.setHours(0,0,0,0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
             
             const isMobile = window.innerWidth < 768;
+            if (isMobile) document.getElementById('mobile-controls').style.display = 'block';
             
-            // FILTER: Remove yesterday, keep today and tomorrow
+            // Filter out old data
             const modernData = agileFull.filter(d => new Date(d.valid_from) >= today);
 
-            // MOBILE: Filter to today only
+            // MOBILE: Show today OR tomorrow based on toggle state
             const filteredAgile = isMobile 
                 ? modernData.filter(d => {
                     const dDate = new Date(d.valid_from);
-                    return dDate.getDate() === today.getDate();
+                    return viewingTomorrow 
+                        ? dDate.getDate() === tomorrow.getDate() 
+                        : dDate.getDate() === today.getDate();
                 }) 
                 : modernData;
 
@@ -112,8 +150,10 @@
                 return ''; 
             });
             
-            // Find current position of NOW bar
-            const nowIdx = filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
+            // Find current position of NOW bar - disable if viewing tomorrow on mobile
+            const nowIdx = (isMobile && viewingTomorrow) 
+                ? -1 
+                : filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
             // Update Price Cards
             const curA = agileFull.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
