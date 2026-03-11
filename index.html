@@ -81,14 +81,36 @@
                 options: {
                     maintainAspectRatio: false,
                     scales: {
-                        y: { position: 'left', title: {display: true, text: 'Elec p/kWh'}, ticks: {color:'#aaa'}, grid: {color:'#333'} },
-                        yGas: { position: 'right', title: {display: true, text: 'Gas p/kWh', color: '#ff9f40'}, ticks: {color:'#ff9f40'}, grid: {drawOnChartArea: false} },
-                        x: { ticks: {color: '#aaa', maxTicksLimit: 12} }
+                        y: { 
+                            position: 'left', 
+                            beginAtZero: true, // Forces electricity scale to start at 0
+                            title: { display: true, text: 'Elec p/kWh' }, 
+                            ticks: { color: '#aaa' }, 
+                            grid: { color: '#333' } 
+                        },
+                        yGas: { 
+                            position: 'right', 
+                            beginAtZero: true, // Forces gas scale to start at 0
+                            min: 0, 
+                            title: { display: true, text: 'Gas p/kWh', color: '#ff9f40' }, 
+                            ticks: { color: '#ff9f40' }, 
+                            grid: { drawOnChartArea: false } 
+                        },
+                        x: { 
+                            ticks: { color: '#aaa', maxTicksLimit: 12 } 
+                        }
                     },
                     plugins: {
                         annotation: {
                             annotations: {
-                                nowLine: { type: 'line', xMin: nowIdx, xMax: nowIdx, borderColor: 'white', borderWidth: 2, label: {content:'NOW', display:true} }
+                                nowLine: { 
+                                    type: 'line', 
+                                    xMin: nowIdx, 
+                                    xMax: nowIdx, 
+                                    borderColor: 'white', 
+                                    borderWidth: 2, 
+                                    label: { content: 'NOW', display: true } 
+                                }
                             }
                         }
                     }
