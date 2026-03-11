@@ -3,162 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Dashboard: East Anglia</title>
+    <title>Octopus Live: East Anglia</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         :root { --agile: #f03292; --tracker: #4bc0c0; --gas: #ff9f40; --bg: #0d0d12; --card: #1a1a24; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; }
-        .container { max-width: 1100px; margin: 0 auto; }
-        .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: var(--card); padding: 20px; border-radius: 12px; text-align: center; border-bottom: 4px solid #333; }
-        .stat-card.agile { border-color: var(--agile); }
-        .stat-card.tracker { border-color: var(--tracker); }
-        .stat-card.gas { border-color: var(--gas); }
-        .val { font-size: 2rem; font-weight: bold; display: block; }
-        .label { font-size: 0.8rem; color: #a0a0b0; text-transform: uppercase; letter-spacing: 1px; }
-        .chart-box { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
-        th { background: #252533; padding: 12px; text-align: left; font-size: 0.9rem; color: #a0a0b0; }
-        td { padding: 12px; border-top: 1px solid #333; }
-        .cheaper { color: #2ecc71; font-weight: bold; }
-        .expensive { color: #e74c3c; }
+        body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .dash { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .card { background: var(--card); padding: 15px; border-radius: 10px; text-align: center; border-bottom: 3px solid #333; }
+        .val { font-size: 1.8rem; font-weight: bold; display: block; }
+        .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; }
+        .chart-container { background: var(--card); padding: 15px; border-radius: 10px; height: 400px; position: relative; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="dash-grid">
-        <div class="stat-card agile">
-            <span class="label">Current Agile</span>
-            <span class="val" id="curAgile">...</span>
-        </div>
-        <div class="stat-card tracker">
-            <span class="label">Tracker (Elec)</span>
-            <span class="val" id="curTracker">...</span>
-        </div>
-        <div class="stat-card gas">
-            <span class="label">Tracker (Gas)</span>
-            <span class="val" id="curGas">...</span>
-        </div>
+    <div class="dash">
+        <div class="card" style="border-color: var(--agile)"><span class="label">Current Agile</span><span class="val" id="ca">-</span></div>
+        <div class="card" style="border-color: var(--tracker)"><span class="label">Tracker Elec</span><span class="val" id="ce">-</span></div>
+        <div class="card" style="border-color: var(--gas)"><span class="label">Tracker Gas</span><span class="val" id="cg">-</span></div>
     </div>
 
-    <div class="chart-box">
-        <canvas id="mainChart"></canvas>
+    <div class="chart-container">
+        <canvas id="canvas"></canvas>
     </div>
-
-    <h3>Upcoming Agile vs Tracker (East Anglia)</h3>
-    <table id="savingsTable">
-        <thead>
-            <tr>
-                <th>Time Window</th>
-                <th>Agile Price</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
 </div>
 
 <script>
-    // 1. Register the annotation plugin (This was the missing piece!)
+    // CRITICAL: This registers the "Now" line plugin
     Chart.register(window['chartjs-plugin-annotation']);
 
-    const REGION = 'A'; 
-    const AGILE_URL = `https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REGION}/standard-unit-rates/`;
-    const TRACKER_E_URL = `https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
-    const TRACKER_G_URL = `https://api.octopus.energy/v1/products/SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
+    const REG = 'A'; // East Anglia
+    const fetchJSON = url => fetch(url).then(r => r.json());
 
-    async function init() {
-        try {
-            const [agileData, trackerEData, trackerGData] = await Promise.all([
-                fetch(AGILE_URL).then(r => r.json()),
-                fetch(TRACKER_E_URL).then(r => r.json()),
-                fetch(TRACKER_G_URL).then(r => r.json())
-            ]);
+    async function run() {
+        const [aData, eData, gData] = await Promise.all([
+            fetchJSON(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REG}/standard-unit-rates/`),
+            fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`),
+            fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`)
+        ]);
 
-            const agile = agileData.results.sort((a, b) => new Date(a.valid_from) - new Date(b.valid_from));
-            const trackerE = trackerEData.results;
-            const trackerG = trackerGData.results;
-
-            updateDashboard(agile, trackerE, trackerG);
-            renderChart(agile, trackerE, trackerG);
-            renderTable(agile, trackerE);
-        } catch (err) {
-            console.error("Dashboard error:", err);
-        }
-    }
-
-    function updateDashboard(agile, trackerE, trackerG) {
+        const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
         const now = new Date();
+
+        // 1. Update Top Stats
         const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
         const todayStr = now.toISOString().split('T')[0];
-        const curE = trackerE.find(s => s.valid_from.startsWith(todayStr));
-        const curG = trackerG.find(s => s.valid_from.startsWith(todayStr));
+        const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
+        const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
 
-        if(curA) document.getElementById('curAgile').innerText = curA.value_inc_vat.toFixed(1) + 'p';
-        if(curE) document.getElementById('curTracker').innerText = curE.value_inc_vat.toFixed(1) + 'p';
-        if(curG) document.getElementById('curGas').innerText = curG.value_inc_vat.toFixed(1) + 'p';
-    }
+        document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : 'N/A';
+        document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : 'N/A';
+        document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : 'N/A';
 
-    function renderChart(agile, trackerE, trackerG) {
+        // 2. Prepare Chart Data
         const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
-        const nowIndex = agile.findIndex(d => new Date(d.valid_from) > new Date()) - 1;
+        const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
-        new Chart(document.getElementById('mainChart'), {
+        new Chart(document.getElementById('canvas'), {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Agile (Elec)', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', tension: 0.3, pointRadius: 0 },
+                    { label: 'Agile', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', tension: 0.3, pointRadius: 0 },
                     { 
-                        label: 'Tracker (Elec)', 
-                        data: agile.map(a => (trackerE.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        label: 'Tracker Elec', 
+                        data: agile.map(a => (eData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
                         borderColor: '#4bc0c0', stepped: 'before', borderDash: [5,5], pointRadius: 0 
                     },
                     { 
-                        label: 'Tracker (Gas)', 
-                        data: agile.map(a => (trackerG.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        label: 'Tracker Gas', 
+                        data: agile.map(a => (gData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
                         borderColor: '#ff9f40', stepped: 'before', pointRadius: 0, borderWidth: 1 
                     }
                 ]
             },
             options: {
+                maintainAspectRatio: false,
                 plugins: {
                     annotation: {
                         annotations: {
                             nowLine: {
-                                type: 'line',
-                                xMin: nowIndex, xMax: nowIndex,
+                                type: 'line', xMin: nowIdx, xMax: nowIdx,
                                 borderColor: 'white', borderWidth: 2,
-                                label: { content: 'NOW', display: true, backgroundColor: 'white', color: 'black', font: {size: 10} }
+                                label: { content: 'NOW', display: true, backgroundColor: 'white', color: 'black', position: 'start' }
                             }
                         }
                     }
                 },
-                scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa', maxTicksLimit: 12 } } }
+                scales: { 
+                    y: { grid: { color: '#333' }, ticks: { color: '#aaa' } },
+                    x: { ticks: { color: '#aaa', maxTicksLimit: 12 } }
+                }
             }
         });
     }
-
-    function renderTable(agile, trackerE) {
-        const tbody = document.querySelector('#savingsTable tbody');
-        const future = agile.filter(d => new Date(d.valid_from) > new Date()).slice(0, 12);
-        
-        future.forEach(slot => {
-            const tPrice = trackerE.find(t => t.valid_from.startsWith(slot.valid_from.split('T')[0])).value_inc_vat;
-            const isCheaper = slot.value_inc_vat < tPrice;
-            tbody.innerHTML += `<tr>
-                <td>${new Date(slot.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                <td>${slot.value_inc_vat.toFixed(1)}p</td>
-                <td class="${isCheaper ? 'cheaper' : 'expensive'}">${isCheaper ? 'CHEAPER' : 'DEARER'}</td>
-                <td>${isCheaper ? '✅ Run Laundry' : '❌ Avoid'}</td>
-            </tr>`;
-        });
-    }
-
-    init();
+    run();
 </script>
 </body>
 </html>
