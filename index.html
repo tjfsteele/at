@@ -3,125 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Dashboard</title>
+    <title>Octopus Live</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #0d0d12; color: #fff; padding: 20px; }
+        :root { --agile: #f03292; --tracker: #4bc0c0; --gas: #ff9f40; --bg: #0d0d12; --card: #1a1a24; }
+        body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 10px; }
         .container { max-width: 1000px; margin: 0 auto; }
-        .dash { display: flex; gap: 10px; margin-bottom: 20px; }
-        .card { flex: 1; background: #1a1a24; padding: 15px; border-radius: 10px; text-align: center; border-bottom: 3px solid #444; }
-        .val { font-size: 1.5rem; font-weight: bold; display: block; }
-        .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; }
-        .chart-box { background: #1a1a24; padding: 15px; border-radius: 10px; height: 500px; }
+        
+        /* Mobile-First Dashboard: Stacks on small screens */
+        .dash { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
+        @media (min-width: 600px) { .dash { grid-template-columns: repeat(3, 1fr); } }
+
+        .card { background: var(--card); padding: 12px; border-radius: 12px; text-align: center; border-bottom: 4px solid #333; }
+        .val { font-size: 1.6rem; font-weight: bold; display: block; margin-top: 5px; }
+        .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Chart container with dynamic height for mobile */
+        .chart-box { background: var(--card); padding: 10px; border-radius: 12px; height: 60vh; min-height: 400px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="dash">
-        <div class="card" style="border-color:#f03292"><span class="label">Agile</span><span id="ca" class="val">-</span></div>
-        <div class="card" style="border-color:#4bc0c0"><span class="label">Elec Trk</span><span id="ce" class="val">-</span></div>
-        <div class="card" style="border-color:#ff9f40"><span class="label">Gas Trk</span><span id="cg" class="val">-</span></div>
+        <div class="card" style="border-color: var(--agile)"><span class="label">Agile Elec</span><span class="val" id="ca">-</span></div>
+        <div class="card" style="border-color: var(--tracker)"><span class="label">Tracker Elec</span><span class="val" id="ce">-</span></div>
+        <div class="card" style="border-color: var(--gas)"><span class="label">Tracker Gas</span><span class="val" id="cg">-</span></div>
     </div>
+
     <div class="chart-box">
         <canvas id="mainChart"></canvas>
     </div>
 </div>
 
 <script>
-    // Ensure plugin is active
     Chart.register(window['chartjs-plugin-annotation']);
+    const REG = 'A'; 
+    const fetchJSON = url => fetch(url).then(r => r.json());
 
-    const REGION = 'A';
-    
-    async function init() {
-        try {
-            const [a, e, g] = await Promise.all([
-                fetch(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REGION}/standard-unit-rates/`).then(r => r.json()),
-                fetch(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`).then(r => r.json()),
-                fetch(`https://api.octopus.energy/v1/products/SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`).then(r => r.json())
-            ]);
+    async function run() {
+        const [aData, eData, gData] = await Promise.all([
+            fetchJSON(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REG}/standard-unit-rates/`),
+            fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`),
+            fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`)
+        ]);
 
-            const agile = a.results.sort((x, y) => new Date(x.valid_from) - new Date(y.valid_from));
-            const now = new Date();
-            
-            // Stats
-            const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
-            const todayStr = now.toISOString().split('T')[0];
-            const curE = e.results.find(s => s.valid_from.startsWith(todayStr));
-            const curG = g.results.find(s => s.valid_from.startsWith(todayStr));
+        const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
+        const now = new Date();
+        const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+        const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
-            document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '?';
-            document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '?';
-            document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '?';
+        // Dashboard update logic
+        const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
+        const todayStr = now.toISOString().split('T')[0];
+        const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
+        const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
+        document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
+        document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
+        document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '-';
 
-            // Chart
-            const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
-            const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
-
-            new Chart(document.getElementById('mainChart'), {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Agile', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', yAxisID: 'y', pointRadius: 0, tension: 0.2 },
-                        { 
-                            label: 'Elec Tracker', 
-                            data: agile.map(s => (e.results.find(t => t.valid_from.startsWith(s.valid_from.split('T')[0])) || {}).value_inc_vat),
-                            borderColor: '#4bc0c0', yAxisID: 'y', stepped: 'before', borderDash: [5,5], pointRadius: 0
-                        },
-                        { 
-                            label: 'Gas Tracker', 
-                            data: agile.map(s => (g.results.find(t => t.valid_from.startsWith(s.valid_from.split('T')[0])) || {}).value_inc_vat),
-                            borderColor: '#ff9f40', yAxisID: 'yGas', stepped: 'before', pointRadius: 0, borderWidth: 2
-                        }
-                    ]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { 
-                            position: 'left', 
-                            beginAtZero: true, // Forces electricity scale to start at 0
-                            title: { display: true, text: 'Elec p/kWh' }, 
-                            ticks: { color: '#aaa' }, 
-                            grid: { color: '#333' } 
-                        },
-                        yGas: { 
-                            position: 'right', 
-                            beginAtZero: true, // Forces gas scale to start at 0
-                            min: 0, 
-                            title: { display: true, text: 'Gas p/kWh', color: '#ff9f40' }, 
-                            ticks: { color: '#ff9f40' }, 
-                            grid: { drawOnChartArea: false } 
-                        },
-                        x: { 
-                            ticks: { color: '#aaa', maxTicksLimit: 12 } 
-                        }
+        new Chart(document.getElementById('mainChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Agile', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', yAxisID: 'y', tension: 0.3, pointRadius: 0 },
+                    { 
+                        label: 'Elec Trk', 
+                        data: agile.map(a => (eData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        borderColor: '#4bc0c0', yAxisID: 'y', stepped: 'before', borderDash: [5,5], pointRadius: 0 
                     },
-                    plugins: {
-                        annotation: {
-                            annotations: {
-                                nowLine: { 
-                                    type: 'line', 
-                                    xMin: nowIdx, 
-                                    xMax: nowIdx, 
-                                    borderColor: 'white', 
-                                    borderWidth: 2, 
-                                    label: { content: 'NOW', display: true } 
-                                }
-                            }
+                    { 
+                        label: 'Gas Trk', 
+                        data: agile.map(a => (gData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        borderColor: '#ff9f40', yAxisID: 'yGas', stepped: 'before', pointRadius: 0, borderWidth: 2 
+                    }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false, // Essential for mobile flexibility
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, color: '#aaa' } },
+                    annotation: {
+                        annotations: {
+                            nowLine: { type: 'line', xMin: nowIdx, xMax: nowIdx, borderColor: 'white', borderWidth: 2, label: { content: 'NOW', display: true } }
                         }
                     }
+                },
+                scales: { 
+                    y: { position: 'left', beginAtZero: true, ticks: { color: '#aaa', font: { size: 10 } }, grid: { color: '#333' } },
+                    yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
+                    x: { ticks: { color: '#aaa', maxTicksLimit: 6, font: { size: 10 } } }
                 }
-            });
-        } catch (err) {
-            console.error("Critical Failure:", err);
-            alert("Check Console (F12) for error");
-        }
+            }
+        });
     }
-    init();
+    run();
 </script>
 </body>
 </html>
