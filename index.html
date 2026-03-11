@@ -52,6 +52,8 @@
         const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
         const now = new Date();
         const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+        
+        // Find current index for the "Now" line
         const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
         // Dashboard update logic
@@ -59,6 +61,7 @@
         const todayStr = now.toISOString().split('T')[0];
         const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
         const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
+        
         document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
         document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
         document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '-';
@@ -68,26 +71,48 @@
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Agile', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', yAxisID: 'y', tension: 0.3, pointRadius: 0 },
+                    { 
+                        label: 'Agile', 
+                        data: agile.map(d => d.value_inc_vat), 
+                        borderColor: '#f03292', 
+                        yAxisID: 'y', 
+                        stepped: 'after', // Changed to steps
+                        pointRadius: 0 
+                    },
                     { 
                         label: 'Elec Trk', 
                         data: agile.map(a => (eData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#4bc0c0', yAxisID: 'y', stepped: 'before', borderDash: [5,5], pointRadius: 0 
+                        borderColor: '#4bc0c0', 
+                        yAxisID: 'y', 
+                        stepped: 'before', 
+                        borderDash: [5,5], 
+                        pointRadius: 0 
                     },
                     { 
                         label: 'Gas Trk', 
                         data: agile.map(a => (gData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#ff9f40', yAxisID: 'yGas', stepped: 'before', pointRadius: 0, borderWidth: 2 
+                        borderColor: '#ff9f40', 
+                        yAxisID: 'yGas', 
+                        stepped: 'before', 
+                        pointRadius: 0, 
+                        borderWidth: 2 
                     }
                 ]
             },
             options: {
-                maintainAspectRatio: false, // Essential for mobile flexibility
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'bottom', labels: { boxWidth: 12, color: '#aaa' } },
                     annotation: {
                         annotations: {
-                            nowLine: { type: 'line', xMin: nowIdx, xMax: nowIdx, borderColor: 'white', borderWidth: 2, label: { content: 'NOW', display: true } }
+                            nowLine: { 
+                                type: 'line', 
+                                xMin: nowIdx, 
+                                xMax: nowIdx, 
+                                borderColor: 'rgba(255, 255, 255, 0.5)', 
+                                borderWidth: 2, 
+                                label: { content: 'NOW', display: true, backgroundColor: 'rgba(0,0,0,0.5)', font: { size: 10 } } 
+                            }
                         }
                     }
                 },
