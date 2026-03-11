@@ -4,14 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Octopus Dashboard: East Anglia</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         :root { --agile: #f03292; --tracker: #4bc0c0; --gas: #ff9f40; --bg: #0d0d12; --card: #1a1a24; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; }
         .container { max-width: 1100px; margin: 0 auto; }
-        
-        /* Dashboard Header */
         .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-card { background: var(--card); padding: 20px; border-radius: 12px; text-align: center; border-bottom: 4px solid #333; }
         .stat-card.agile { border-color: var(--agile); }
@@ -19,11 +17,7 @@
         .stat-card.gas { border-color: var(--gas); }
         .val { font-size: 2rem; font-weight: bold; display: block; }
         .label { font-size: 0.8rem; color: #a0a0b0; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* Chart Area */
-        .chart-box { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; position: relative; }
-        
-        /* Tables */
+        .chart-box { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
         th { background: #252533; padding: 12px; text-align: left; font-size: 0.9rem; color: #a0a0b0; }
         td { padding: 12px; border-top: 1px solid #333; }
@@ -37,15 +31,15 @@
     <div class="dash-grid">
         <div class="stat-card agile">
             <span class="label">Current Agile</span>
-            <span class="val" id="curAgile">-</span>
+            <span class="val" id="curAgile">...</span>
         </div>
         <div class="stat-card tracker">
             <span class="label">Tracker (Elec)</span>
-            <span class="val" id="curTracker">-</span>
+            <span class="val" id="curTracker">...</span>
         </div>
         <div class="stat-card gas">
             <span class="label">Tracker (Gas)</span>
-            <span class="val" id="curGas">-</span>
+            <span class="val" id="curGas">...</span>
         </div>
     </div>
 
@@ -53,14 +47,14 @@
         <canvas id="mainChart"></canvas>
     </div>
 
-    <h3>Cheapest Slots (Next 24h)</h3>
+    <h3>Upcoming Agile vs Tracker (East Anglia)</h3>
     <table id="savingsTable">
         <thead>
             <tr>
                 <th>Time Window</th>
                 <th>Agile Price</th>
-                <th>vs. Tracker</th>
-                <th>Advice</th>
+                <th>Status</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -68,108 +62,99 @@
 </div>
 
 <script>
-    const REGION = 'A'; // East Anglia
-    const API_BASE = "https://api.octopus.energy/v1/products/";
-    
-    // Product codes updated for March 2026
-    const AGILE_E = `${API_BASE}AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REGION}/standard-unit-rates/`;
-    const TRACKER_E = `${API_BASE}SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
-    const TRACKER_G = `${API_BASE}SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
+    // 1. Register the annotation plugin (This was the missing piece!)
+    Chart.register(window['chartjs-plugin-annotation']);
+
+    const REGION = 'A'; 
+    const AGILE_URL = `https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REGION}/standard-unit-rates/`;
+    const TRACKER_E_URL = `https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
+    const TRACKER_G_URL = `https://api.octopus.energy/v1/products/SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REGION}/standard-unit-rates/`;
 
     async function init() {
         try {
-            const [ae, te, tg] = await Promise.all([
-                fetch(AGILE_E).then(r => r.json()),
-                fetch(TRACKER_E).then(r => r.json()),
-                fetch(TRACKER_G).then(r => r.json())
+            const [agileData, trackerEData, trackerGData] = await Promise.all([
+                fetch(AGILE_URL).then(r => r.json()),
+                fetch(TRACKER_E_URL).then(r => r.json()),
+                fetch(TRACKER_G_URL).then(r => r.json())
             ]);
 
-            const agile = ae.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
-            const trackE = te.results;
-            const trackG = tg.results;
+            const agile = agileData.results.sort((a, b) => new Date(a.valid_from) - new Date(b.valid_from));
+            const trackerE = trackerEData.results;
+            const trackerG = trackerGData.results;
 
-            updateDashboard(agile, trackE, trackG);
-            renderMainChart(agile, trackE, trackG);
-            renderSavings(agile, trackE);
-        } catch (e) { console.error("API Error:", e); }
+            updateDashboard(agile, trackerE, trackerG);
+            renderChart(agile, trackerE, trackerG);
+            renderTable(agile, trackerE);
+        } catch (err) {
+            console.error("Dashboard error:", err);
+        }
     }
 
-    function updateDashboard(agile, trackE, trackG) {
+    function updateDashboard(agile, trackerE, trackerG) {
         const now = new Date();
-        const currentAgile = agile.find(d => new Date(d.valid_from) <= now && new Date(d.valid_to) > now);
+        const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
         const todayStr = now.toISOString().split('T')[0];
-        const currentTE = trackE.find(d => d.valid_from.startsWith(todayStr));
-        const currentTG = trackG.find(d => d.valid_from.startsWith(todayStr));
+        const curE = trackerE.find(s => s.valid_from.startsWith(todayStr));
+        const curG = trackerG.find(s => s.valid_from.startsWith(todayStr));
 
-        document.getElementById('curAgile').innerText = currentAgile ? currentAgile.value_inc_vat.toFixed(1) + 'p' : '-';
-        document.getElementById('curTracker').innerText = currentTE ? currentTE.value_inc_vat.toFixed(1) + 'p' : '-';
-        document.getElementById('curGas').innerText = currentTG ? currentTG.value_inc_vat.toFixed(1) + 'p' : '-';
+        if(curA) document.getElementById('curAgile').innerText = curA.value_inc_vat.toFixed(1) + 'p';
+        if(curE) document.getElementById('curTracker').innerText = curE.value_inc_vat.toFixed(1) + 'p';
+        if(curG) document.getElementById('curGas').innerText = curG.value_inc_vat.toFixed(1) + 'p';
     }
 
-    function renderMainChart(agile, trackE, trackG) {
+    function renderChart(agile, trackerE, trackerG) {
         const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
-        const agileData = agile.map(d => d.value_inc_vat);
-        
-        const trackEData = agile.map(a => {
-            const match = trackE.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0]));
-            return match ? match.value_inc_vat : null;
-        });
-
-        const trackGData = agile.map(a => {
-            const match = trackG.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0]));
-            return match ? match.value_inc_vat : null;
-        });
+        const nowIndex = agile.findIndex(d => new Date(d.valid_from) > new Date()) - 1;
 
         new Chart(document.getElementById('mainChart'), {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Agile (Elec)', data: agileData, borderColor: '#f03292', tension: 0.3, pointRadius: 0, borderWidth: 2 },
-                    { label: 'Tracker (Elec)', data: trackEData, borderColor: '#4bc0c0', stepped: 'before', borderDash: [5,5], pointRadius: 0 },
-                    { label: 'Tracker (Gas)', data: trackGData, borderColor: '#ff9f40', stepped: 'before', pointRadius: 0, borderWidth: 1 }
+                    { label: 'Agile (Elec)', data: agile.map(d => d.value_inc_vat), borderColor: '#f03292', tension: 0.3, pointRadius: 0 },
+                    { 
+                        label: 'Tracker (Elec)', 
+                        data: agile.map(a => (trackerE.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        borderColor: '#4bc0c0', stepped: 'before', borderDash: [5,5], pointRadius: 0 
+                    },
+                    { 
+                        label: 'Tracker (Gas)', 
+                        data: agile.map(a => (trackerG.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
+                        borderColor: '#ff9f40', stepped: 'before', pointRadius: 0, borderWidth: 1 
+                    }
                 ]
             },
             options: {
-                responsive: true,
-                scales: { 
-                    y: { grid: { color: '#333' }, ticks: { color: '#aaa' } },
-                    x: { ticks: { color: '#aaa', maxTicksLimit: 12 } }
-                },
                 plugins: {
                     annotation: {
                         annotations: {
-                            line1: {
+                            nowLine: {
                                 type: 'line',
-                                xMin: labels[agile.findIndex(d => new Date(d.valid_from) > new Date()) - 1],
-                                xMax: labels[agile.findIndex(d => new Date(d.valid_from) > new Date()) - 1],
-                                borderColor: 'white',
-                                borderWidth: 2,
+                                xMin: nowIndex, xMax: nowIndex,
+                                borderColor: 'white', borderWidth: 2,
                                 label: { content: 'NOW', display: true, backgroundColor: 'white', color: 'black', font: {size: 10} }
                             }
                         }
                     }
-                }
+                },
+                scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa', maxTicksLimit: 12 } } }
             }
         });
     }
 
-    function renderSavings(agile, trackE) {
+    function renderTable(agile, trackerE) {
         const tbody = document.querySelector('#savingsTable tbody');
-        const futureSlots = agile.filter(d => new Date(d.valid_from) > new Date()).slice(0, 10);
+        const future = agile.filter(d => new Date(d.valid_from) > new Date()).slice(0, 12);
         
-        futureSlots.forEach(slot => {
-            const trackerPrice = trackE.find(t => t.valid_from.startsWith(slot.valid_from.split('T')[0])).value_inc_vat;
-            const diff = (slot.value_inc_vat - trackerPrice).toFixed(1);
-            const isCheaper = slot.value_inc_vat < trackerPrice;
-
-            const row = `<tr>
+        future.forEach(slot => {
+            const tPrice = trackerE.find(t => t.valid_from.startsWith(slot.valid_from.split('T')[0])).value_inc_vat;
+            const isCheaper = slot.value_inc_vat < tPrice;
+            tbody.innerHTML += `<tr>
                 <td>${new Date(slot.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                 <td>${slot.value_inc_vat.toFixed(1)}p</td>
-                <td class="${isCheaper ? 'cheaper' : 'expensive'}">${isCheaper ? 'SAVE ' + Math.abs(diff) + 'p' : '+' + diff + 'p'}</td>
-                <td>${isCheaper ? '⚡ Use Appliances' : 'Wait'}</td>
+                <td class="${isCheaper ? 'cheaper' : 'expensive'}">${isCheaper ? 'CHEAPER' : 'DEARER'}</td>
+                <td>${isCheaper ? '✅ Run Laundry' : '❌ Avoid'}</td>
             </tr>`;
-            tbody.innerHTML += row;
         });
     }
 
