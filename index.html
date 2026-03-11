@@ -7,15 +7,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
-        :root { --agile: #f03292; --tracker: #4bc0c0; --gas: #ff9f40; --bg: #0d0d12; --card: #1a1a24; }<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-    <style>
         :root { --agile: #f03292; --tracker: #4bc0c0; --gas: #ff9f40; --bg: #0d0d12; --card: #1a1a24; }
         body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 10px; }
         .container { max-width: 1000px; margin: 0 auto; }
@@ -154,99 +145,6 @@
                             font: { size: 9 },
                             maxRotation: 45,
                             minRotation: 45
-                        } 
-                    }
-                }
-            }
-        });
-    }
-    run();
-</script>
-</body>
-</html>
-        body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 10px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        
-        /* Mobile-First Dashboard: Stacks on small screens */
-        .dash { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
-        @media (min-width: 600px) { .dash { grid-template-columns: repeat(3, 1fr); } }
-
-        .card { background: var(--card); padding: 12px; border-radius: 12px; text-align: center; border-bottom: 4px solid #333; }
-        .val { font-size: 1.6rem; font-weight: bold; display: block; margin-top: 5px; }
-        .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        /* Chart container with dynamic height for mobile */
-        .chart-box { background: var(--card); padding: 10px; border-radius: 12px; height: 60vh; min-height: 400px; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="dash">
-        <div class="card" style="border-color: var(--agile)"><span class="label">Agile Elec</span><span class="val" id="ca">-</span></div>
-        <div class="card" style="border-color: var(--tracker)"><span class="label">Tracker Elec</span><span class="val" id="ce">-</span></div>
-        <div class="card" style="border-color: var(--gas)"><span class="label">Tracker Gas</span><span class="val" id="cg">-</span></div>
-    </div>
-
-    <div class="chart-box">
-        <canvas id="mainChart"></canvas>
-    </div>
-</div>
-
-<script>
-    Chart.register(window['chartjs-plugin-annotation']);
-    const REG = 'A'; 
-    const fetchJSON = url => fetch(url).then(r => r.json());
-
-    // ... previous code (fetchJSON, etc.)
-
-    async function run() {
-        // ... (data fetching remains the same)
-
-        const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
-        const now = new Date();
-
-        // 1. IMPROVED LABELS: Now includes Date + Time
-        const labels = agile.map(d => {
-            const dt = new Date(d.valid_from);
-            return dt.toLocaleDateString([], {day:'2-digit', month:'short'}) + ' ' + 
-                   dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        });
-        
-        const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
-
-        // ... (Dashboard update logic remains the same)
-
-        new Chart(document.getElementById('mainChart'), {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [ /* ... your datasets ... */ ]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    // ... (legend and annotation settings)
-                },
-                scales: { 
-                    y: { /* ... */ },
-                    yGas: { /* ... */ },
-                    // 2. IMPROVED X-AXIS: Force ticks and rotation
-                    x: { 
-                        display: true,
-                        grid: {
-                            display: true,
-                            color: '#333',
-                            drawOnChartArea: true,
-                            drawTicks: true, // Shows the little "nubs"
-                        },
-                        ticks: { 
-                            color: '#aaa', 
-                            maxTicksLimit: 10, // Increased for better density
-                            font: { size: 9 },
-                            maxRotation: 45,   // Rotates labels so they don't overlap
-                            minRotation: 45,
-                            autoSkip: true     // Prevents a messy wall of text
                         } 
                     }
                 }
