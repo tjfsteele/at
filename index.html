@@ -99,10 +99,18 @@
                     }
                 ]
             },
-            options: {
+                        options: {
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12, color: '#aaa' } },
+                    legend: { 
+                        position: 'bottom', 
+                        labels: { 
+                            usePointStyle: true, // Tells Chart.js to use a shape instead of a box
+                            pointStyle: 'line',  // Sets that shape to a horizontal line
+                            color: '#aaa',
+                            font: { size: 12 }
+                        } 
+                    },
                     annotation: {
                         annotations: {
                             nowLine: { 
@@ -111,7 +119,12 @@
                                 xMax: nowIdx, 
                                 borderColor: 'rgba(255, 255, 255, 0.5)', 
                                 borderWidth: 2, 
-                                label: { content: 'NOW', display: true, backgroundColor: 'rgba(0,0,0,0.5)', font: { size: 10 } } 
+                                label: { 
+                                    content: 'NOW', 
+                                    display: true, 
+                                    backgroundColor: 'rgba(0,0,0,0.5)', 
+                                    font: { size: 10 } 
+                                } 
                             }
                         }
                     }
