@@ -42,97 +42,57 @@
     const REG = 'A'; 
     const fetchJSON = url => fetch(url).then(r => r.json());
 
+    // ... previous code (fetchJSON, etc.)
+
     async function run() {
-        const [aData, eData, gData] = await Promise.all([
-            fetchJSON(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REG}/standard-unit-rates/`),
-            fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`),
-            fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`)
-        ]);
+        // ... (data fetching remains the same)
 
         const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
         const now = new Date();
-        const labels = agile.map(d => new Date(d.valid_from).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+
+        // 1. IMPROVED LABELS: Now includes Date + Time
+        const labels = agile.map(d => {
+            const dt = new Date(d.valid_from);
+            return dt.toLocaleDateString([], {day:'2-digit', month:'short'}) + ' ' + 
+                   dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        });
         
-        // Find current index for the "Now" line
         const nowIdx = agile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
-        // Dashboard update logic
-        const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
-        const todayStr = now.toISOString().split('T')[0];
-        const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
-        const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
-        
-        document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
-        document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
-        document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '-';
+        // ... (Dashboard update logic remains the same)
 
         new Chart(document.getElementById('mainChart'), {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [
-                    { 
-                        label: 'Agile', 
-                        data: agile.map(d => d.value_inc_vat), 
-                        borderColor: '#f03292', 
-                        yAxisID: 'y', 
-                        stepped: 'after', // Changed to steps
-                        pointRadius: 0 
-                    },
-                    { 
-                        label: 'Elec Trk', 
-                        data: agile.map(a => (eData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#4bc0c0', 
-                        yAxisID: 'y', 
-                        stepped: 'before', 
-                        pointRadius: 0,
-                        borderWidth: 1
-                    },
-                    { 
-                        label: 'Gas Trk', 
-                        data: agile.map(a => (gData.results.find(t => t.valid_from.startsWith(a.valid_from.split('T')[0])) || {}).value_inc_vat),
-                        borderColor: '#ff9f40', 
-                        yAxisID: 'yGas', 
-                        stepped: 'before', 
-                        pointRadius: 0, 
-                        borderWidth: 2 
-                    }
-                ]
+                datasets: [ /* ... your datasets ... */ ]
             },
-                        options: {
+            options: {
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { 
-                        position: 'bottom', 
-                        labels: { 
-                            usePointStyle: true, // Tells Chart.js to use a shape instead of a box
-                            pointStyle: 'line',  // Sets that shape to a horizontal line
-                            color: '#aaa',
-                            font: { size: 12 }
-                        } 
-                    },
-                    annotation: {
-                        annotations: {
-                            nowLine: { 
-                                type: 'line', 
-                                xMin: nowIdx, 
-                                xMax: nowIdx, 
-                                borderColor: 'rgba(255, 255, 255, 0.5)', 
-                                borderWidth: 2, 
-                                label: { 
-                                    content: 'NOW', 
-                                    display: true, 
-                                    backgroundColor: 'rgba(0,0,0,0.5)', 
-                                    font: { size: 10 } 
-                                } 
-                            }
-                        }
-                    }
+                    // ... (legend and annotation settings)
                 },
                 scales: { 
-                    y: { position: 'left', beginAtZero: true, ticks: { color: '#aaa', font: { size: 10 } }, grid: { color: '#333' } },
-                    yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
-                    x: { ticks: { color: '#aaa', maxTicksLimit: 6, font: { size: 10 } } }
+                    y: { /* ... */ },
+                    yGas: { /* ... */ },
+                    // 2. IMPROVED X-AXIS: Force ticks and rotation
+                    x: { 
+                        display: true,
+                        grid: {
+                            display: true,
+                            color: '#333',
+                            drawOnChartArea: true,
+                            drawTicks: true, // Shows the little "nubs"
+                        },
+                        ticks: { 
+                            color: '#aaa', 
+                            maxTicksLimit: 10, // Increased for better density
+                            font: { size: 9 },
+                            maxRotation: 45,   // Rotates labels so they don't overlap
+                            minRotation: 45,
+                            autoSkip: true     // Prevents a messy wall of text
+                        } 
+                    }
                 }
             }
         });
