@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live - Dynamic Intervals</title>
+    <title>Octopus Live - Responsive View</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -34,14 +34,13 @@
             .card { padding: 15px; border-bottom-width: 4px; }
             .val { font-size: 1.8rem; }
             .label { font-size: 0.75rem; }
-            .chart-box { height: 75vh; }
         }
 
         .chart-box { 
             background: var(--card); 
             padding: 8px; 
             border-radius: 12px; 
-            height: 70vh; 
+            height: 72vh; 
             min-height: 400px; 
         }
     </style>
@@ -72,28 +71,32 @@
             fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/gas-tariffs/G-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`)
         ]);
 
-        const agile = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
+        const agileFull = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
 
+        // LOGIC: 
+        // 1. We always want to show Today and Tomorrow (if available).
+        // 2. On Mobile (<768px), we force-filter to ONLY Today's date.
         const isMobile = window.innerWidth < 768;
-        // Filter out "Yesterday" data by ensuring valid_from is >= Today
-        const availableData = agile.filter(d => d.valid_from >= todayStr);
         
+        // Filter out everything older than the start of today for both views
+        const modernData = agileFull.filter(d => d.valid_from >= todayStr);
+
         const filteredAgile = isMobile 
-            ? availableData.filter(d => d.valid_from.startsWith(todayStr)) 
-            : availableData;
+            ? modernData.filter(d => d.valid_from.startsWith(todayStr)) 
+            : modernData;
 
         const labels = filteredAgile.map(d => {
             const dt = new Date(d.valid_from);
             const hrs = dt.getHours();
             const mins = dt.getMinutes();
             
-            // At Midnight, show the Date
+            // Show date at midnight (00:00)
             if (hrs === 0 && mins === 0) {
                 return dt.toLocaleDateString([], {day:'2-digit', month:'short'});
             }
-            // Otherwise, show 3H intervals
+            // Show 3-hour intervals
             if (mins === 0 && hrs % 3 === 0) {
                 return hrs.toString().padStart(2, '0') + ':00';
             }
@@ -102,7 +105,8 @@
         
         const nowIdx = filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
-        const curA = agile.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
+        // Current price cards
+        const curA = agileFull.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
         const curE = eData.results.find(s => s.valid_from.startsWith(todayStr));
         const curG = gData.results.find(s => s.valid_from.startsWith(todayStr));
         
@@ -165,11 +169,11 @@
                     x: { 
                         grid: { color: (ctx) => ctx.tick && ctx.tick.label !== '' ? '#333' : 'transparent' },
                         ticks: { 
-                            color: (ctx) => isNaN(ctx.tick.label) && ctx.tick.label.includes(':') ? '#aaa' : '#fff', 
+                            color: (ctx) => (ctx.tick.label && ctx.tick.label.includes(':')) ? '#aaa' : '#fff', 
                             autoSkip: false, 
                             maxRotation: 0, 
                             font: (ctx) => {
-                                const isDate = ctx.tick && isNaN(ctx.tick.label) && !ctx.tick.label.includes(':');
+                                const isDate = ctx.tick.label && !ctx.tick.label.includes(':');
                                 return { size: 9, weight: isDate ? 'bold' : 'normal' };
                             }
                         } 
