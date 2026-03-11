@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live - Compact Mobile</title>
+    <title>Octopus Live - Dynamic Intervals</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -11,7 +11,6 @@
         body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 8px; overflow-x: hidden; }
         .container { max-width: 1000px; margin: 0 auto; }
         
-        /* MOBILE FIRST: Side-by-side slim cards */
         .dash { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
@@ -27,11 +26,9 @@
             border-bottom: 3px solid #333; 
         }
 
-        /* Shrink text on mobile to fit 3-across */
         .val { font-size: 1.1rem; font-weight: bold; display: block; }
         .label { font-size: 0.6rem; color: #aaa; text-transform: uppercase; white-space: nowrap; }
 
-        /* DESKTOP: Larger cards */
         @media (min-width: 768px) {
             .dash { gap: 15px; margin-bottom: 15px; }
             .card { padding: 15px; border-bottom-width: 4px; }
@@ -44,7 +41,7 @@
             background: var(--card); 
             padding: 8px; 
             border-radius: 12px; 
-            height: 75vh; /* Takes up most of the remaining viewport */
+            height: 70vh; 
             min-height: 400px; 
         }
     </style>
@@ -79,17 +76,26 @@
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
 
-        // RESPONSIVE DATA: "Today" for mobile, "Today & Tomorrow" for desktop
         const isMobile = window.innerWidth < 768;
+        // Filter out "Yesterday" data by ensuring valid_from is >= Today
+        const availableData = agile.filter(d => d.valid_from >= todayStr);
+        
         const filteredAgile = isMobile 
-            ? agile.filter(d => d.valid_from.startsWith(todayStr)) 
-            : agile;
+            ? availableData.filter(d => d.valid_from.startsWith(todayStr)) 
+            : availableData;
 
         const labels = filteredAgile.map(d => {
             const dt = new Date(d.valid_from);
-            // 3H Intervals
-            if (dt.getMinutes() === 0 && dt.getHours() % 3 === 0) {
-                return dt.getHours().toString().padStart(2, '0') + ':00';
+            const hrs = dt.getHours();
+            const mins = dt.getMinutes();
+            
+            // At Midnight, show the Date
+            if (hrs === 0 && mins === 0) {
+                return dt.toLocaleDateString([], {day:'2-digit', month:'short'});
+            }
+            // Otherwise, show 3H intervals
+            if (mins === 0 && hrs % 3 === 0) {
+                return hrs.toString().padStart(2, '0') + ':00';
             }
             return ''; 
         });
@@ -158,7 +164,15 @@
                     yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
                     x: { 
                         grid: { color: (ctx) => ctx.tick && ctx.tick.label !== '' ? '#333' : 'transparent' },
-                        ticks: { color: '#aaa', autoSkip: false, maxRotation: 0, font: { size: 9 } } 
+                        ticks: { 
+                            color: (ctx) => isNaN(ctx.tick.label) && ctx.tick.label.includes(':') ? '#aaa' : '#fff', 
+                            autoSkip: false, 
+                            maxRotation: 0, 
+                            font: (ctx) => {
+                                const isDate = ctx.tick && isNaN(ctx.tick.label) && !ctx.tick.label.includes(':');
+                                return { size: 9, weight: isDate ? 'bold' : 'normal' };
+                            }
+                        } 
                     }
                 }
             }
