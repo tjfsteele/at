@@ -41,6 +41,12 @@
             padding-right: 5px;
         }
 
+        /* Fix for the white background on dropdown options */
+        #regionSelect option {
+            background: #2a2a35;
+            color: #fff;
+        }
+
         .dash { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
 
         .card { 
@@ -95,12 +101,12 @@
     </div>
 
     <div class="dash">
-        <div class="card" style="border-color: var(--agile)"><span class="label">Agile</span><span class="val" id="ca">-</span></div>
-        <div class="card" style="border-color: var(--tracker)"><span class="label">Tracker Elec</span><span class="val" id="ce">-</span></div>
-        <div class="card" style="border-color: var(--gas)"><span class="label">Tracker Gas</span><span class="val" id="cg">-</span></div>
+        <div class="card" style="border-color: var(--agile)"><span class="label">Live Agile</span><span class="val" id="ca">-</span></div>
+        <div class="card" style="border-color: var(--tracker)"><span class="label">Live Elec</span><span class="val" id="ce">-</span></div>
+        <div class="card" style="border-color: var(--gas)"><span class="label">Live Gas</span><span class="val" id="cg">-</span></div>
     </div>
 
-    <div id="mobile-controls"><button id="toggleDay">Tomorrow</button></div>
+    <div id="mobile-controls"><button id="toggleDay">Show Tomorrow</button></div>
     <div class="chart-box"><canvas id="mainChart"></canvas></div>
     <div id="updated-tag">Syncing...</div>
 </div>
@@ -124,7 +130,7 @@
 
     document.getElementById('toggleDay').addEventListener('click', () => {
         viewingTomorrow = !viewingTomorrow;
-        document.getElementById('toggleDay').innerText = viewingTomorrow ? "Today" : "Tomorrow";
+        document.getElementById('toggleDay').innerText = viewingTomorrow ? "Show Today" : "Show Tomorrow";
         updateDashboard();
     });
 
