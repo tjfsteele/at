@@ -240,6 +240,14 @@
                             padding: 10,
                             displayColors: true,
                             callbacks: {
+                                // This part fixes the missing time in the title
+                                title: (context) => {
+                                    const index = context[0].dataIndex;
+                                    const dataObj = filteredAgile[index];
+                                    if (!dataObj) return '';
+                                    const dt = new Date(dataObj.valid_from);
+                                    return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                },
                                 label: (context) => ` ${context.dataset.label}: ${context.parsed.y.toFixed(2)}p`
                             }
                         },
