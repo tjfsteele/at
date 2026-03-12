@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Live - Auto Roll</title>
+    <title>Octopus Rates</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -11,124 +11,104 @@
         body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 8px; overflow-x: hidden; }
         .container { max-width: 1000px; margin: 0 auto; }
         
-        .dash { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 6px; 
-            margin-bottom: 10px; 
-        }
-
-        .card { 
-            background: var(--card); 
-            padding: 8px 4px; 
-            border-radius: 8px; 
-            text-align: center; 
-            border-bottom: 3px solid #333; 
+        /* New Global Header */
+        .header {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
+            padding: 5px 10px 15px 5px;
+        }
+        .title { font-size: 0.9rem; font-weight: bold; color: #eee; }
+
+        .region-picker {
+            display: flex;
+            align-items: center;
+            background: #2a2a35;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid #444;
         }
 
-        .val { font-size: 1.1rem; font-weight: bold; display: block; }
-        .label, #regionSelect { font-size: 0.6rem; color: #aaa; text-transform: uppercase; white-space: nowrap; }
-        
         #regionSelect {
             background: transparent;
             border: none;
-            color: #aaa;
-            cursor: pointer;
-            text-align: center;
-            outline: none;
-            appearance: none; /* Removes default arrow for a cleaner look */
-        }
-
-        @media (min-width: 768px) {
-            .dash { gap: 15px; margin-bottom: 15px; }
-            .card { padding: 15px; border-bottom-width: 4px; }
-            .val { font-size: 1.8rem; }
-            .label, #regionSelect { font-size: 0.75rem; }
-        }
-
-        .chart-box { 
-            background: var(--card); 
-            padding: 8px; 
-            border-radius: 12px; 
-            height: 70vh; 
-            min-height: 400px; 
-            position: relative;
-        }
-
-        #mobile-controls {
-            display: none;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-
-        #toggleDay {
-            background: #2a2a35;
             color: #fff;
-            border: 1px solid #444;
-            padding: 8px 20px;
-            border-radius: 6px;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
             cursor: pointer;
-        }
-
-        #updated-tag {
-            text-align: right;
-            font-size: 0.6rem;
-            color: #555;
-            margin-top: 5px;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
             padding-right: 5px;
         }
+
+        .dash { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+
+        .card { 
+            background: var(--card); 
+            padding: 12px 4px; 
+            border-radius: 8px; 
+            text-align: center; 
+            border-bottom: 3px solid #333; 
+        }
+
+        .val { font-size: 1.2rem; font-weight: bold; display: block; margin-top: 5px; }
+        .label { font-size: 0.65rem; color: #aaa; text-transform: uppercase; font-weight: 600; }
+
+        @media (min-width: 768px) {
+            .dash { gap: 15px; }
+            .card { padding: 20px; }
+            .val { font-size: 2rem; }
+            .label { font-size: 0.8rem; }
+            .title { font-size: 1.2rem; }
+        }
+
+        .chart-box { background: var(--card); padding: 8px; border-radius: 12px; height: 65vh; min-height: 400px; }
+        #mobile-controls { display: none; text-align: center; margin-bottom: 10px; }
+        #toggleDay { background: #2a2a35; color: #fff; border: 1px solid #444; padding: 8px 20px; border-radius: 6px; cursor: pointer; }
+        #updated-tag { text-align: right; font-size: 0.6rem; color: #555; margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="dash">
-        <div class="card" style="border-color: var(--agile)">
-            <span class="label">AGILE</span>
-            <div style="position: relative; display: flex; align-items: center;">
-                <select id="regionSelect">
-                    <option value="A">Eastern (A)</option>
-                    <option value="B">E. Midlands (B)</option>
-                    <option value="C">London (C)</option>
-                    <option value="D">Mersey/NW (D)</option>
-                    <option value="E">W. Midlands (E)</option>
-                    <option value="F">N. Eastern (F)</option>
-                    <option value="G">N. Western (G)</option>
-                    <option value="H">Southern (H)</option>
-                    <option value="J">S. Eastern (J)</option>
-                    <option value="K">S. Wales (K)</option>
-                    <option value="L">S. Western (L)</option>
-                    <option value="M">Yorkshire (M)</option>
-                    <option value="N">S. Scotland (N)</option>
-                    <option value="P">N. Scotland (P)</option>
-                </select>
-                <span style="font-size: 0.5rem; color: var(--agile); margin-left: -2px; pointer-events: none;">▼</span>
-            </div>
-            <span class="val" id="ca">-</span>
+    <div class="header">
+        <div class="title">Octopus Smart Rates</div>
+        <div class="region-picker">
+            <select id="regionSelect">
+                <option value="A">Region A (Eastern)</option>
+                <option value="B">Region B (E. Midlands)</option>
+                <option value="C">Region C (London)</option>
+                <option value="D">Region D (Mersey/NW)</option>
+                <option value="E">Region E (W. Midlands)</option>
+                <option value="F">Region F (N. Eastern)</option>
+                <option value="G">Region G (N. Western)</option>
+                <option value="H">Region H (Southern)</option>
+                <option value="J">Region J (S. Eastern)</option>
+                <option value="K">Region K (S. Wales)</option>
+                <option value="L">Region L (S. Western)</option>
+                <option value="M">Region M (Yorkshire)</option>
+                <option value="N">Region N (S. Scotland)</option>
+                <option value="P">Region P (N. Scotland)</option>
+            </select>
+            <span style="font-size: 0.5rem; color: #888;">▼</span>
         </div>
+    </div>
+
+    <div class="dash">
+        <div class="card" style="border-color: var(--agile)"><span class="label">Agile</span><span class="val" id="ca">-</span></div>
         <div class="card" style="border-color: var(--tracker)"><span class="label">Trk Elec</span><span class="val" id="ce">-</span></div>
         <div class="card" style="border-color: var(--gas)"><span class="label">Trk Gas</span><span class="val" id="cg">-</span></div>
     </div>
 
-    <div id="mobile-controls">
-        <button id="toggleDay">Show Tomorrow</button>
-    </div>
-
-    <div class="chart-box">
-        <canvas id="mainChart"></canvas>
-    </div>
+    <div id="mobile-controls"><button id="toggleDay">Show Tomorrow</button></div>
+    <div class="chart-box"><canvas id="mainChart"></canvas></div>
     <div id="updated-tag">Syncing...</div>
 </div>
 
 <script>
     Chart.register(window['chartjs-plugin-annotation']);
     
-    // Region Management
     const regionSelector = document.getElementById('regionSelect');
     let REG = localStorage.getItem('octo_reg') || 'A';
     regionSelector.value = REG;
@@ -151,6 +131,7 @@
 
     async function updateDashboard() {
         try {
+            // Using the global REG variable for all three regional fetch requests
             const [aData, eData, gData] = await Promise.all([
                 fetchJSON(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REG}/standard-unit-rates/`),
                 fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`),
@@ -159,10 +140,8 @@
 
             const agileFull = aData.results.sort((a,b) => new Date(a.valid_from) - new Date(b.valid_from));
             const now = new Date();
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const tomorrow = new Date(today);
-            tomorrow.setDate(today.getDate() + 1);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
             
             const modernData = agileFull.filter(d => new Date(d.valid_from) >= today);
             const isMobile = window.innerWidth < 768;
@@ -178,9 +157,7 @@
             const filteredAgile = isMobile 
                 ? modernData.filter(d => {
                     const dDate = new Date(d.valid_from);
-                    return viewingTomorrow 
-                        ? dDate.getDate() === tomorrow.getDate() 
-                        : dDate.getDate() === today.getDate();
+                    return viewingTomorrow ? dDate.getDate() === tomorrow.getDate() : dDate.getDate() === today.getDate();
                 }) 
                 : modernData;
 
@@ -193,9 +170,7 @@
                 return ''; 
             });
             
-            const nowIdx = (isMobile && viewingTomorrow) 
-                ? -1 
-                : filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
+            const nowIdx = (isMobile && viewingTomorrow) ? -1 : filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
             const curA = agileFull.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
             const curE = eData.results.find(s => new Date(s.valid_from).getDate() === today.getDate());
@@ -204,7 +179,7 @@
             document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
             document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
             document.getElementById('cg').innerText = curG ? curG.value_inc_vat.toFixed(1)+'p' : '-';
-            document.getElementById('updated-tag').innerText = "Last Updated: " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('updated-tag').innerText = "Last Sync: " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
             if (myChart) myChart.destroy();
 
@@ -213,39 +188,17 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { 
-                            label: 'Agile', 
-                            data: filteredAgile.map(d => d.value_inc_vat), 
-                            borderColor: '#f03292', 
-                            stepped: 'after', 
-                            pointRadius: 0, 
-                            borderWidth: 2 
-                        },
-                        { 
-                            label: 'Elec Trk', 
-                            data: filteredAgile.map(a => {
+                        { label: 'Agile', data: filteredAgile.map(d => d.value_inc_vat), borderColor: '#f03292', stepped: 'after', pointRadius: 0, borderWidth: 2 },
+                        { label: 'Elec Trk', data: filteredAgile.map(a => {
                                 const aDate = new Date(a.valid_from).getDate();
                                 const trk = eData.results.find(t => new Date(t.valid_from).getDate() === aDate);
                                 return trk ? trk.value_inc_vat : null;
-                            }),
-                            borderColor: '#4bc0c0', 
-                            stepped: 'before', 
-                            pointRadius: 0, 
-                            borderWidth: 1.5 
-                        },
-                        { 
-                            label: 'Gas Trk', 
-                            data: filteredAgile.map(a => {
+                            }), borderColor: '#4bc0c0', stepped: 'before', pointRadius: 0, borderWidth: 1.5 },
+                        { label: 'Gas Trk', data: filteredAgile.map(a => {
                                 const aDate = new Date(a.valid_from).getDate();
                                 const trk = gData.results.find(t => new Date(t.valid_from).getDate() === aDate);
                                 return trk ? trk.value_inc_vat : null;
-                            }),
-                            borderColor: '#ff9f40', 
-                            yAxisID: 'yGas', 
-                            stepped: 'before', 
-                            pointRadius: 0, 
-                            borderWidth: 2 
-                        }
+                            }), borderColor: '#ff9f40', yAxisID: 'yGas', stepped: 'before', pointRadius: 0, borderWidth: 2 }
                     ]
                 },
                 options: {
@@ -257,22 +210,14 @@
                             enabled: true,
                             backgroundColor: 'rgba(26, 26, 36, 0.9)',
                             callbacks: {
-                                title: (ctx) => {
-                                    const dt = new Date(filteredAgile[ctx[0].dataIndex].valid_from);
-                                    return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                },
+                                title: (ctx) => new Date(filteredAgile[ctx[0].dataIndex].valid_from).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                                 label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}p`
                             }
                         },
                         legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 }, color: '#aaa' } },
                         annotation: {
                             annotations: {
-                                nowLine: { 
-                                    type: 'line', 
-                                    xMin: nowIdx, xMax: nowIdx, 
-                                    borderColor: 'rgba(255, 255, 255, 0.4)', 
-                                    borderWidth: 2, 
-                                    display: nowIdx >= 0,
+                                nowLine: { type: 'line', xMin: nowIdx, xMax: nowIdx, borderColor: 'rgba(255, 255, 255, 0.4)', borderWidth: 2, display: nowIdx >= 0,
                                     label: { content: 'NOW', display: true, position: 'start', backgroundColor: 'rgba(0,0,0,0.5)', font: { size: 9 } } 
                                 }
                             }
@@ -281,12 +226,8 @@
                     scales: { 
                         y: { position: 'left', beginAtZero: true, ticks: { color: '#aaa', font: { size: 10 } }, grid: { color: '#222' } },
                         yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
-                        x: { 
-                            grid: { color: (ctx) => (ctx.tick && ctx.tick.label !== '') ? '#333' : 'transparent' },
-                            ticks: { 
-                                color: (ctx) => (ctx.tick.label && ctx.tick.label.includes(':')) ? '#aaa' : '#fff', 
-                                autoSkip: false, 
-                                maxRotation: 0, 
+                        x: { grid: { color: (ctx) => (ctx.tick && ctx.tick.label !== '') ? '#333' : 'transparent' },
+                            ticks: { color: (ctx) => (ctx.tick.label && ctx.tick.label.includes(':')) ? '#aaa' : '#fff', autoSkip: false, maxRotation: 0, 
                                 font: (ctx) => {
                                     const isDate = ctx.tick.label && !ctx.tick.label.includes(':');
                                     return { size: 9, weight: isDate ? 'bold' : 'normal' };
@@ -297,8 +238,7 @@
                 }
             });
         } catch (e) {
-            console.error("Update failed", e);
-            document.getElementById('updated-tag').innerText = "Update Failed - Retrying...";
+            document.getElementById('updated-tag').innerText = "Update Failed - Check Region/Network";
         }
     }
 
