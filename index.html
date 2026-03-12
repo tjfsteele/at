@@ -24,16 +24,30 @@
             border-radius: 8px; 
             text-align: center; 
             border-bottom: 3px solid #333; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         .val { font-size: 1.1rem; font-weight: bold; display: block; }
-        .label { font-size: 0.6rem; color: #aaa; text-transform: uppercase; white-space: nowrap; }
+        .label, #regionSelect { font-size: 0.6rem; color: #aaa; text-transform: uppercase; white-space: nowrap; }
+        
+        #regionSelect {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            text-align: center;
+            outline: none;
+            appearance: none; /* Removes default arrow for a cleaner look */
+        }
 
         @media (min-width: 768px) {
             .dash { gap: 15px; margin-bottom: 15px; }
             .card { padding: 15px; border-bottom-width: 4px; }
             .val { font-size: 1.8rem; }
-            .label { font-size: 0.75rem; }
+            .label, #regionSelect { font-size: 0.75rem; }
         }
 
         .chart-box { 
@@ -49,12 +63,6 @@
             display: none;
             text-align: center;
             margin-bottom: 10px;
-            animation: fadeIn 0.5s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
         }
 
         #toggleDay {
@@ -65,11 +73,6 @@
             border-radius: 6px;
             font-size: 0.8rem;
             cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        #toggleDay:active {
-            background: #444;
         }
 
         #updated-tag {
@@ -85,7 +88,25 @@
 
 <div class="container">
     <div class="dash">
-        <div class="card" style="border-color: var(--agile)"><span class="label">Agile</span><span class="val" id="ca">-</span></div>
+        <div class="card" style="border-color: var(--agile)">
+            <select id="regionSelect">
+                <option value="A">Eastern (A)</option>
+                <option value="B">E. Midlands (B)</option>
+                <option value="C">London (C)</option>
+                <option value="D">Mersey/NW (D)</option>
+                <option value="E">W. Midlands (E)</option>
+                <option value="F">N. Eastern (F)</option>
+                <option value="G">N. Western (G)</option>
+                <option value="H">Southern (H)</option>
+                <option value="J">S. Eastern (J)</option>
+                <option value="K">S. Wales (K)</option>
+                <option value="L">S. Western (L)</option>
+                <option value="M">Yorkshire (M)</option>
+                <option value="N">S. Scotland (N)</option>
+                <option value="P">N. Scotland (P)</option>
+            </select>
+            <span class="val" id="ca">-</span>
+        </div>
         <div class="card" style="border-color: var(--tracker)"><span class="label">Trk Elec</span><span class="val" id="ce">-</span></div>
         <div class="card" style="border-color: var(--gas)"><span class="label">Trk Gas</span><span class="val" id="cg">-</span></div>
     </div>
@@ -102,10 +123,21 @@
 
 <script>
     Chart.register(window['chartjs-plugin-annotation']);
-    const REG = 'A'; 
+    
+    // Region Management
+    const regionSelector = document.getElementById('regionSelect');
+    let REG = localStorage.getItem('octo_reg') || 'A';
+    regionSelector.value = REG;
+
     const fetchJSON = url => fetch(url).then(r => r.json());
     let myChart = null;
     let viewingTomorrow = false; 
+
+    regionSelector.addEventListener('change', (e) => {
+        REG = e.target.value;
+        localStorage.setItem('octo_reg', REG);
+        updateDashboard();
+    });
 
     document.getElementById('toggleDay').addEventListener('click', () => {
         viewingTomorrow = !viewingTomorrow;
@@ -129,7 +161,6 @@
             tomorrow.setDate(today.getDate() + 1);
             
             const modernData = agileFull.filter(d => new Date(d.valid_from) >= today);
-            
             const isMobile = window.innerWidth < 768;
             const hasTomorrowData = modernData.some(d => new Date(d.valid_from) >= tomorrow);
 
@@ -163,14 +194,8 @@
                 : filteredAgile.findIndex(d => new Date(d.valid_from) > now) - 1;
 
             const curA = agileFull.find(s => new Date(s.valid_from) <= now && new Date(s.valid_to) > now);
-            const curE = eData.results.find(s => {
-                const dDate = new Date(s.valid_from);
-                return dDate.getDate() === today.getDate();
-            });
-            const curG = gData.results.find(s => {
-                const dDate = new Date(s.valid_from);
-                return dDate.getDate() === today.getDate();
-            });
+            const curE = eData.results.find(s => new Date(s.valid_from).getDate() === today.getDate());
+            const curG = gData.results.find(s => new Date(s.valid_from).getDate() === today.getDate());
             
             document.getElementById('ca').innerText = curA ? curA.value_inc_vat.toFixed(1)+'p' : '-';
             document.getElementById('ce').innerText = curE ? curE.value_inc_vat.toFixed(1)+'p' : '-';
@@ -190,7 +215,6 @@
                             borderColor: '#f03292', 
                             stepped: 'after', 
                             pointRadius: 0, 
-                            pointHitRadius: 20,
                             borderWidth: 2 
                         },
                         { 
@@ -203,7 +227,6 @@
                             borderColor: '#4bc0c0', 
                             stepped: 'before', 
                             pointRadius: 0, 
-                            pointHitRadius: 20,
                             borderWidth: 1.5 
                         },
                         { 
@@ -217,7 +240,6 @@
                             yAxisID: 'yGas', 
                             stepped: 'before', 
                             pointRadius: 0, 
-                            pointHitRadius: 20,
                             borderWidth: 2 
                         }
                     ]
@@ -225,30 +247,17 @@
                 options: {
                     maintainAspectRatio: false,
                     animation: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index',
-                    },
+                    interaction: { intersect: false, mode: 'index' },
                     plugins: {
                         tooltip: {
                             enabled: true,
                             backgroundColor: 'rgba(26, 26, 36, 0.9)',
-                            titleColor: '#aaa',
-                            bodyColor: '#fff',
-                            borderColor: '#444',
-                            borderWidth: 1,
-                            padding: 10,
-                            displayColors: true,
                             callbacks: {
-                                // This part fixes the missing time in the title
-                                title: (context) => {
-                                    const index = context[0].dataIndex;
-                                    const dataObj = filteredAgile[index];
-                                    if (!dataObj) return '';
-                                    const dt = new Date(dataObj.valid_from);
+                                title: (ctx) => {
+                                    const dt = new Date(filteredAgile[ctx[0].dataIndex].valid_from);
                                     return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                 },
-                                label: (context) => ` ${context.dataset.label}: ${context.parsed.y.toFixed(2)}p`
+                                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}p`
                             }
                         },
                         legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 }, color: '#aaa' } },
