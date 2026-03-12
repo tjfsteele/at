@@ -11,7 +11,6 @@
         body { font-family: sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 8px; overflow-x: hidden; }
         .container { max-width: 1000px; margin: 0 auto; }
         
-        /* New Global Header */
         .header {
             display: flex;
             justify-content: space-between;
@@ -96,9 +95,9 @@
     </div>
 
     <div class="dash">
-        <div class="card" style="border-color: var(--agile)"><span class="label">Agile</span><span class="val" id="ca">-</span></div>
-        <div class="card" style="border-color: var(--tracker)"><span class="label">Trk Elec</span><span class="val" id="ce">-</span></div>
-        <div class="card" style="border-color: var(--gas)"><span class="label">Trk Gas</span><span class="val" id="cg">-</span></div>
+        <div class="card" style="border-color: var(--agile)"><span class="label">Live Agile</span><span class="val" id="ca">-</span></div>
+        <div class="card" style="border-color: var(--tracker)"><span class="label">Live Elec</span><span class="val" id="ce">-</span></div>
+        <div class="card" style="border-color: var(--gas)"><span class="label">Live Gas</span><span class="val" id="cg">-</span></div>
     </div>
 
     <div id="mobile-controls"><button id="toggleDay">Show Tomorrow</button></div>
@@ -131,7 +130,6 @@
 
     async function updateDashboard() {
         try {
-            // Using the global REG variable for all three regional fetch requests
             const [aData, eData, gData] = await Promise.all([
                 fetchJSON(`https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-${REG}/standard-unit-rates/`),
                 fetchJSON(`https://api.octopus.energy/v1/products/SILVER-24-12-31/electricity-tariffs/E-1R-SILVER-24-12-31-${REG}/standard-unit-rates/`),
@@ -193,12 +191,7 @@
                                 const aDate = new Date(a.valid_from).getDate();
                                 const trk = eData.results.find(t => new Date(t.valid_from).getDate() === aDate);
                                 return trk ? trk.value_inc_vat : null;
-                            }), borderColor: '#4bc0c0', stepped: 'before', pointRadius: 0, borderWidth: 1.5 },
-                        { label: 'Gas Trk', data: filteredAgile.map(a => {
-                                const aDate = new Date(a.valid_from).getDate();
-                                const trk = gData.results.find(t => new Date(t.valid_from).getDate() === aDate);
-                                return trk ? trk.value_inc_vat : null;
-                            }), borderColor: '#ff9f40', yAxisID: 'yGas', stepped: 'before', pointRadius: 0, borderWidth: 2 }
+                            }), borderColor: '#4bc0c0', stepped: 'before', pointRadius: 0, borderWidth: 1.5 }
                     ]
                 },
                 options: {
@@ -225,7 +218,6 @@
                     },
                     scales: { 
                         y: { position: 'left', beginAtZero: true, ticks: { color: '#aaa', font: { size: 10 } }, grid: { color: '#222' } },
-                        yGas: { position: 'right', beginAtZero: true, min: 0, ticks: { color: '#ff9f40', font: { size: 10 } }, grid: { drawOnChartArea: false } },
                         x: { grid: { color: (ctx) => (ctx.tick && ctx.tick.label !== '') ? '#333' : 'transparent' },
                             ticks: { color: (ctx) => (ctx.tick.label && ctx.tick.label.includes(':')) ? '#aaa' : '#fff', autoSkip: false, maxRotation: 0, 
                                 font: (ctx) => {
