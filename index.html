@@ -89,22 +89,26 @@
 <div class="container">
     <div class="dash">
         <div class="card" style="border-color: var(--agile)">
-            <select id="regionSelect">
-                <option value="A">Eastern (A)</option>
-                <option value="B">E. Midlands (B)</option>
-                <option value="C">London (C)</option>
-                <option value="D">Mersey/NW (D)</option>
-                <option value="E">W. Midlands (E)</option>
-                <option value="F">N. Eastern (F)</option>
-                <option value="G">N. Western (G)</option>
-                <option value="H">Southern (H)</option>
-                <option value="J">S. Eastern (J)</option>
-                <option value="K">S. Wales (K)</option>
-                <option value="L">S. Western (L)</option>
-                <option value="M">Yorkshire (M)</option>
-                <option value="N">S. Scotland (N)</option>
-                <option value="P">N. Scotland (P)</option>
-            </select>
+            <span class="label">AGILE</span>
+            <div style="position: relative; display: flex; align-items: center;">
+                <select id="regionSelect">
+                    <option value="A">Eastern (A)</option>
+                    <option value="B">E. Midlands (B)</option>
+                    <option value="C">London (C)</option>
+                    <option value="D">Mersey/NW (D)</option>
+                    <option value="E">W. Midlands (E)</option>
+                    <option value="F">N. Eastern (F)</option>
+                    <option value="G">N. Western (G)</option>
+                    <option value="H">Southern (H)</option>
+                    <option value="J">S. Eastern (J)</option>
+                    <option value="K">S. Wales (K)</option>
+                    <option value="L">S. Western (L)</option>
+                    <option value="M">Yorkshire (M)</option>
+                    <option value="N">S. Scotland (N)</option>
+                    <option value="P">N. Scotland (P)</option>
+                </select>
+                <span style="font-size: 0.5rem; color: var(--agile); margin-left: -2px; pointer-events: none;">▼</span>
+            </div>
             <span class="val" id="ca">-</span>
         </div>
         <div class="card" style="border-color: var(--tracker)"><span class="label">Trk Elec</span><span class="val" id="ce">-</span></div>
